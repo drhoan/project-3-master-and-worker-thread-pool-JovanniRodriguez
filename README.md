@@ -24,7 +24,7 @@ You must write your solution in the file master-worker.c. You must modify this s
 in the following ways. You must add code to spawn the required number of worker threads, and write the
 function to be run by these threads. This function will remove/consume items from the shared buffer and
 print them to screen. Further, you must add logic to correctly synchronize the producer and consumer
-threads in such a way that every number is produced and consumed exactly once. Further, producerse
+threads in such a way that every number is produced and consumed exactly once. Further, producers
 must not try to produce when the buffer is full, and consumers should not consume from an empty
 buffer. While you need to ensure that all C workers are involved in consuming the integers, it is not
 necessary to ensure perfect load balancing between the workers. Once allM integers (from 0 toM −1)
