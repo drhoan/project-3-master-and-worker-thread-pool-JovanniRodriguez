@@ -7,6 +7,9 @@
 #include <wait.h>
 #include <pthread.h>
 #include <semaphore.h>
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  buf_full = PTHREAD_COND_INITIALIZER;
+pthread_cond_t  buf_empty = PTHREAD_COND_INITIALIZER; //use locks instead of semaphores!!!
 sem_t s;    
 
 int item_to_produce, curr_buf_size;
@@ -34,7 +37,7 @@ void *generate_requests_loop(void *data)
 
   while (1)
   {
-
+    pthread_mutex_lock(&lock); //hold the lock
     if (item_to_produce >= total_items)
     {
       break;
@@ -56,6 +59,7 @@ void *consume_items(void *data)
 
   while(1)
   {
+    pthread_mutex_lock(&lock);
     int num = buffer[curr_buf_size];
 
     print_consumed(num, thread_id);
