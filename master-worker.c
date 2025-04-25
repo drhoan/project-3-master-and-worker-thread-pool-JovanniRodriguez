@@ -7,7 +7,7 @@
 #include <wait.h>
 #include <pthread.h>
 #include <semaphore.h>
-
+//check threads-cv folder >> pc.c 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;    //the lock itself
 
 pthread_cond_t buf_empty = PTHREAD_COND_INITIALIZER; //empty condition variable
@@ -16,7 +16,7 @@ pthread_cond_t buf_full = PTHREAD_COND_INITIALIZER; //full condition variable
  // use locks instead of semaphores!!!
 sem_t s;
 
-int item_to_produce, curr_buf_size;
+int item_to_produce, curr_buf_size; //item_to_consume ???
 int total_items, max_buf_size, num_workers, num_masters;
 
 int *buffer;
@@ -38,7 +38,7 @@ void print_consumed(int num, int worker)
 void *generate_requests_loop(void *data)
 {
   int thread_id = *((int *)data);
-
+  
   while (1)
   {
     pthread_mutex_lock(&lock);          // hold the lock
@@ -49,20 +49,21 @@ void *generate_requests_loop(void *data)
     }
     else //still more items needed, make sure buffer isn't full
     {
-      if(curr_buf_size < max_buf_size) //produce an item
+      while(curr_buf_size == max_buf_size) //produce an item (CHANGED)
       {
+        pthread_cond_wait(&buf_empty, &lock);
+      }
+     
+      
         buffer[curr_buf_size++] = item_to_produce; 
         print_produced(item_to_produce, thread_id);
         item_to_produce++;
-      }
-      else if(curr_buf_size >= max_buf_size) //buffer is full! Wait until empty.
-      {
-        pthread_cond_wait(&buf_empty, &lock);
-      } 
       
+        pthread_cond_signal(&buf_full);
+        pthread_mutex_unlock(&lock); //unlock
     }
-    pthread_mutex_unlock(&lock); //unlock
-    pthread_cond_signal(&buf_full);
+    
+    
   }
   return 0;
 }
@@ -73,14 +74,29 @@ void *generate_requests_loop(void *data)
 void *consume_items(void *data)
 {
   int thread_id = *((int *)data);
-
+  //have to know when to stop, when you consume last item, break; if item to consume larger, then break; if itemtoconsume > totalitems break;
   while (1)
   {
     pthread_mutex_lock(&lock);
-    int num = buffer[curr_buf_size];
+    if(item_to_produce >= total_items)
+    {
+      pthread_mutex_unlock(&lock);
+      break;
+    }
+    while(curr_buf_size == 0)
+    {
+      pthread_cond_wait(&buf_full, &lock);
+    }
+
+    
+    int num = buffer[curr_buf_size--];
 
     print_consumed(num, thread_id);
+
+    pthread_cond_signal(&buf_empty);
+    pthread_mutex_unlock(&lock); //unlock
   }
+  return 0;
 }
 
 int main(int argc, char *argv[])
@@ -88,6 +104,7 @@ int main(int argc, char *argv[])
   sem_init(&s, 0, 1); // init semaphore to 1
   int *master_thread_id;
   int *worker_thread_id;
+
   pthread_t *master_thread;
   pthread_t *worker_thread;
   item_to_produce = 0;
